@@ -98,66 +98,8 @@ resource "google_container_cluster" "gke" {
 }
 ```
 
-### CLI
+---
 
-```bash
-
-Run:
-
-export GOOGLE_APPLICATION_CREDENTIALS="/home/lilia/DevOps/testtest/terraform-sa.json"
-
-export ARM_SUBSCRIPTION_ID=8a984e27-9b68-475f-a7f6-5a053aff04c7
-export ARM_CLIENT_ID=83c7c765-edf1-4e8d-bea7-ca91a54ec0d0
-export ARM_CLIENT_SECRET=
-export ARM_TENANT_ID=7b1e979c-5f76-4b25-97a5-7a3073b921bb
-
-cd terraform
-
-terraform init
-terraform plan
-terraform apply --auto-approve
-
-
-→ should create the cluster + 1-node group successfully.
-
-Connect with kubectl:
-
-aws eks update-kubeconfig --region us-east-1 --name eks-demo --alias eks-demo
-kubectl config use-context eks-demo
-helm install myapp-eks ./helm-chart -f values-eks.yaml
-kubectl get nodes
-
-
-gcloud container clusters get-credentials gke-demo --region us-east4-a --project x-object-472022-q2
-kubectl config use-context gke-demo
-helm install myapp-gke ./helm-chart -f values-gke.yaml
-kubectl get nodes
-
-
-#az account set --subscription 8a984e27-9b68-475f-a7f6-5a053aff04c7
-az aks get-credentials --resource-group aks-rg --name aks-demo --overwrite-existing
-kubectl config use-context aks-demo
-helm install myapp-aks ./helm-chart -f values-aks.yaml
-kubectl get nodes
-
-```
-
-
-
-
-```bash
-cd terraform
-terraform init
-terraform apply -auto-approve
-```
-
-💡 After apply, export kubeconfigs:
-
-```bash
-az aks get-credentials --resource-group aks-rg --name aks-demo
-aws eks update-kubeconfig --region us-east-1 --name eks-demo
-gcloud container clusters get-credentials gke-demo --zone us-central1-a
-```
 
 ---
 
@@ -191,7 +133,18 @@ docker build -t laly9999/multi-cloud-app:1 .
 docker push laly9999/multi-cloud-app:1
 ```
 
+# Validate locally (optional)
+
+```bash
+
+docker run -p 3000:3000 laly9999/multi-cloud-app:1
+
+```
+Open http://localhost:3000
+ → should show Hello Multi-Cloud!
 ---
+
+
 
 # ⚙️ Step 3: Helm Deploy
 
@@ -259,42 +212,135 @@ image:
 ```bash
 cd helm-chart
 
-helm install myapp-eks . -f values-eks.yaml
-helm install myapp-aks . -f values-aks.yaml
-helm install myapp-gke . -f values-gke.yaml
+``bash
+
+Run:
+
+export GOOGLE_APPLICATION_CREDENTIALS="/home/lilia/DevOps/testtest/terraform-sa.json"
+
+export ARM_SUBSCRIPTION_ID=8a984e27-9b68-475f-a7f6-5a053aff04c7
+export ARM_CLIENT_ID=83c7c765-edf1-4e8d-bea7-ca91a54ec0d0
+export ARM_CLIENT_SECRET=
+export ARM_TENANT_ID=7b1e979c-5f76-4b25-97a5-7a3073b921bb
+
+cd terraform
+
+terraform init
+terraform plan
+terraform apply --auto-approve
 
 
-helm uninstall myapp-eks
-helm uninstall myapp-aks
-helm uninstall myapp-gke
+
+Connect with kubectl:
+
+aws eks update-kubeconfig --region us-east-1 --name eks-demo --alias eks-demo
+kubectl config use-context eks-demo
+kubectl get nodes
+helm install myapp-eks ./helm-chart -f values-eks.yaml
+# Validation
+kubectl get pods
+kubectl get svc
 
 
+gcloud container clusters get-credentials gke-demo --region us-east4-a --project x-object-472022-q2
+kubectl config use-context gke-demo
+kubectl get nodes
+helm install myapp-gke ./helm-chart -f values-gke.yaml
+# Validation
+kubectl get pods
+kubectl get svc
 
-helm install myapp . -f values-eks.yaml
-# or
-helm install myapp . -f values-aks.yaml
-helm install myapp . -f values-gke.yaml
-```
 
----
-
-# ⚙️ Step 4: Validation
-
-```bash
+#az account set --subscription 8a984e27-9b68-475f-a7f6-5a053aff04c7
+az aks get-credentials --resource-group aks-rg --name aks-demo --overwrite-existing
+kubectl config use-context aks-demo
+kubectl get nodes
+helm install myapp-aks ./helm-chart -f values-aks.yaml
+# Validation
+kubectl get pods
 kubectl get svc
 ```
 
-Look for an **EXTERNAL-IP**:
+---
+
+A unified Bash script that:
+
+Switches kubeconfig context per cloud.
+
+Runs Helm deploy.
+
+Waits until the EXTERNAL-IP is assigned.
+
+Prints out the service URL for each cluster.
+
+# deploy-multicloud.sh
+
+```bash
+#!/bin/bash
+set -e
+
+APP_NAME="multiapp"
+CHART_PATH="multi-cloud-deploy/helm-chart"
+IMAGE_TAG=${1:-1} # Pass build number or default to 1
+
+# --- Deploy to AWS EKS ---
+echo "🚀 Deploying to AWS EKS..."
+aws eks update-kubeconfig --region us-east-1 --name eks-demo --alias eks-demo
+helm upgrade --install ${APP_NAME}-eks $CHART_PATH -f $CHART_PATH/values-eks.yaml --set image.tag=$IMAGE_TAG
+
+echo "⏳ Waiting for EKS service external IP..."
+kubectl wait --for=condition=available --timeout=300s deployment/${APP_NAME}-eks
+sleep 10
+EKS_IP=$(kubectl get svc ${APP_NAME}-eks -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+echo "✅ EKS App URL: http://$EKS_IP"
+
+
+# --- Deploy to Azure AKS ---
+echo "🚀 Deploying to Azure AKS..."
+az aks get-credentials --resource-group aks-rg --name aks-demo --overwrite-existing
+helm upgrade --install ${APP_NAME}-aks $CHART_PATH -f $CHART_PATH/values-aks.yaml --set image.tag=$IMAGE_TAG
+
+echo "⏳ Waiting for AKS service external IP..."
+kubectl wait --for=condition=available --timeout=300s deployment/${APP_NAME}-aks
+sleep 10
+AKS_IP=$(kubectl get svc ${APP_NAME}-aks -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+echo "✅ AKS App URL: http://$AKS_IP"
+
+
+# --- Deploy to Google GKE ---
+echo "🚀 Deploying to Google GKE..."
+gcloud container clusters get-credentials gke-demo --zone us-east4-a --project x-object-472022-q2
+helm upgrade --install ${APP_NAME}-gke $CHART_PATH -f $CHART_PATH/values-gke.yaml --set image.tag=$IMAGE_TAG
+
+echo "⏳ Waiting for GKE service external IP..."
+kubectl wait --for=condition=available --timeout=300s deployment/${APP_NAME}-gke
+sleep 10
+GKE_IP=$(kubectl get svc ${APP_NAME}-gke -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+echo "✅ GKE App URL: http://$GKE_IP"
+
+echo ""
+echo "🌍 Multi-Cloud Deployments Complete!"
+echo "-----------------------------------"
+echo "EKS: http://$EKS_IP"
+echo "AKS: http://$AKS_IP"
+echo "GKE: http://$GKE_IP"
+
 
 ```
-NAME      TYPE           CLUSTER-IP   EXTERNAL-IP     PORT(S)        AGE
-myapp     LoadBalancer   10.0.12.34   34.123.45.67    80:3000/TCP    1m
-```
 
-Open browser:
-👉 `http://<EXTERNAL-IP>` → should display **Hello Multi-Cloud!**
+
+
+# CLEANUP
+
+```bash
+helm uninstall multiapp-eks
+helm uninstall multiapp-aks
+helm uninstall multiapp-gke
+kubectl delete all --all
+```
 
 ---
+
 
 ✅ Done. You now have **Terraform infra + Dockerized app + Helm chart** deployed on AKS, EKS, GKE.
 
@@ -312,6 +358,7 @@ Perfect 👍 let’s put it all together — a **secure, multi-cloud Jenkinsfile
 4. Deploys to **EKS, AKS, and GKE** using Helm.
 5. Injects credentials from Jenkins securely.
 
+---
 ---
 
 # 🗂 Complete Jenkinsfile
