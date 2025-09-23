@@ -4,7 +4,7 @@
 * **Build & Push App** → Docker image to DockerHub.
 * **Helm Deploy** → Helm chart with cloud-specific values.
 * **Validation** → `kubectl` & browser check.
-
+* **CI/CD automation** → Use Jenkins & GitHub.
 ---
 
 # 🗂 Project Layout
