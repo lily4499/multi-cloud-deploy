@@ -1,0 +1,6 @@
+replicaCount: 2
+
+service:
+  type: LoadBalancer
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"   # AKS-specific tweak

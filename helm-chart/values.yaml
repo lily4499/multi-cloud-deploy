@@ -1,0 +1,19 @@
+replicaCount: 1
+
+image:
+  repository: laly9999/multi-cloud-app
+  tag: "1"
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 3000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi

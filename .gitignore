@@ -1,0 +1,41 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Logs
+*.log
+logs/
+*.out
+*.err
+
+# Environment files
+.env
+*.secret
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/*.tfstate
+terraform/*.tfstate.*
+
+# Helm
+helm-chart/terraform.tfstate
+helm-chart/*.tfstate*
+helm-chart/.terraform/
+
+# Docker
+*.pid
+*.seed
+.dockerignore
+
+# VS Code / IDEs
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
