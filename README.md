@@ -1,4 +1,4 @@
-Perfect 👍 Let’s build this in the **simplest way possible**, from scratch, without remote backends. I’ll break it into **CLI steps + minimal file structure** for:
+
 
 * **Terraform Apply** → Create AKS, EKS, GKE clusters.
 * **Build & Push App** → Docker image to DockerHub.
