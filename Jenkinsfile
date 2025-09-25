@@ -74,18 +74,18 @@ pipeline {
                     sh """
                     aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER --alias eks-demo
                     helm upgrade --install myapp-eks ./helm-chart -f helm-chart/values-eks.yaml --set image.tag=${BUILD_NUMBER}
+
+                    echo "Waiting for EKS LoadBalancer hostname..."
+                    sleep 30
+                    kubectl get svc myapp-eks -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' > eks_url.txt || true
                     """
                 }
-            }
-            post {
-                success {
-                    script {
-                        def eks_url = sh(script: "kubectl get svc myapp-eks -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'", returnStdout: true).trim()
-                        if (eks_url) {
-                            echo "🌐 EKS App URL: http://${eks_url}"
-                        } else {
-                            echo "⚠️ EKS Service external hostname not ready yet. Run: kubectl get svc myapp-eks"
-                        }
+                script {
+                    def eks_url = readFile('eks_url.txt').trim()
+                    if (eks_url) {
+                        echo "🌐 EKS App URL: http://${eks_url}"
+                    } else {
+                        echo "⚠️ EKS external hostname not ready yet. Run: kubectl get svc myapp-eks"
                     }
                 }
             }
@@ -108,18 +108,18 @@ pipeline {
                     az account set --subscription $ARM_SUBSCRIPTION_ID
                     az aks get-credentials --resource-group $AZURE_RG --name $AZURE_AKS --overwrite-existing
                     helm upgrade --install myapp-aks ./helm-chart -f helm-chart/values-aks.yaml --set image.tag=${BUILD_NUMBER}
+
+                    echo "Waiting for AKS LoadBalancer IP..."
+                    sleep 30
+                    kubectl get svc myapp-aks -o jsonpath='{.status.loadBalancer.ingress[0].ip}' > aks_url.txt || true
                     """
                 }
-            }
-            post {
-                success {
-                    script {
-                        def aks_ip = sh(script: "kubectl get svc myapp-aks -o jsonpath='{.status.loadBalancer.ingress[0].ip}'", returnStdout: true).trim()
-                        if (aks_ip) {
-                            echo "🌐 AKS App URL: http://${aks_ip}"
-                        } else {
-                            echo "⚠️ AKS Service external IP not ready yet. Run: kubectl get svc myapp-aks"
-                        }
+                script {
+                    def aks_ip = readFile('aks_url.txt').trim()
+                    if (aks_ip) {
+                        echo "🌐 AKS App URL: http://${aks_ip}"
+                    } else {
+                        echo "⚠️ AKS external IP not ready yet. Run: kubectl get svc myapp-aks"
                     }
                 }
             }
@@ -135,18 +135,18 @@ pipeline {
                     gcloud config set project $GCP_PROJECT
                     gcloud container clusters get-credentials $GKE_CLUSTER --zone $GCP_ZONE --project $GCP_PROJECT
                     helm upgrade --install myapp-gke ./helm-chart -f helm-chart/values-gke.yaml --set image.tag=${BUILD_NUMBER}
+
+                    echo "Waiting for GKE LoadBalancer IP..."
+                    sleep 30
+                    kubectl get svc myapp-gke -o jsonpath='{.status.loadBalancer.ingress[0].ip}' > gke_url.txt || true
                     """
                 }
-            }
-            post {
-                success {
-                    script {
-                        def gke_ip = sh(script: "kubectl get svc myapp-gke -o jsonpath='{.status.loadBalancer.ingress[0].ip}'", returnStdout: true).trim()
-                        if (gke_ip) {
-                            echo "🌐 GKE App URL: http://${gke_ip}"
-                        } else {
-                            echo "⚠️ GKE Service external IP not ready yet. Run: kubectl get svc myapp-gke"
-                        }
+                script {
+                    def gke_ip = readFile('gke_url.txt').trim()
+                    if (gke_ip) {
+                        echo "🌐 GKE App URL: http://${gke_ip}"
+                    } else {
+                        echo "⚠️ GKE external IP not ready yet. Run: kubectl get svc myapp-gke"
                     }
                 }
             }
@@ -160,10 +160,6 @@ pipeline {
         }
     }
 }
-
-
-
-
 
 
 
