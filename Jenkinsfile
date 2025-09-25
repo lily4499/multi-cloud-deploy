@@ -92,6 +92,7 @@ pipeline {
                     sh """
                     gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
                     gcloud config set project $GCP_PROJECT
+                    export USE_GKE_GCLOUD_AUTH_PLUGIN=True
                     gcloud container clusters get-credentials $GKE_CLUSTER --zone $GCP_ZONE --project $GCP_PROJECT
                     helm upgrade --install myapp-gke ./helm-chart -f helm-chart/values-gke.yaml --set image.tag=${BUILD_NUMBER}
                     """
