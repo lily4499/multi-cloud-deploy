@@ -26,7 +26,7 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                git branch: 'main' , url: 'https://github.com/lily4499/multi-cloud-deploy.git'
+                git branch : 'main' , url: 'https://github.com/lily4499/multi-cloud-deploy.git'
             }
         }
 
@@ -77,6 +77,18 @@ pipeline {
                     """
                 }
             }
+            post {
+                success {
+                    script {
+                        def eks_url = sh(script: "kubectl get svc myapp-eks -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'", returnStdout: true).trim()
+                        if (eks_url) {
+                            echo "🌐 EKS App URL: http://${eks_url}"
+                        } else {
+                            echo "⚠️ EKS Service external hostname not ready yet. Run: kubectl get svc myapp-eks"
+                        }
+                    }
+                }
+            }
         }
 
         stage('Deploy to Azure AKS') {
@@ -99,6 +111,18 @@ pipeline {
                     """
                 }
             }
+            post {
+                success {
+                    script {
+                        def aks_ip = sh(script: "kubectl get svc myapp-aks -o jsonpath='{.status.loadBalancer.ingress[0].ip}'", returnStdout: true).trim()
+                        if (aks_ip) {
+                            echo "🌐 AKS App URL: http://${aks_ip}"
+                        } else {
+                            echo "⚠️ AKS Service external IP not ready yet. Run: kubectl get svc myapp-aks"
+                        }
+                    }
+                }
+            }
         }
 
         stage('Deploy to Google GKE') {
@@ -110,16 +134,20 @@ pipeline {
                     gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
                     gcloud config set project $GCP_PROJECT
                     gcloud container clusters get-credentials $GKE_CLUSTER --zone $GCP_ZONE --project $GCP_PROJECT
-
-                    // # RBAC binding if missing
-                    // if ! kubectl get clusterrolebinding terraform-admin-binding >/dev/null 2>&1; then
-                    //   kubectl create clusterrolebinding terraform-admin-binding \
-                    //     --clusterrole=cluster-admin \
-                    //     --user=terraform-admin@x-object-472022-q2.iam.gserviceaccount.com
-                    // fi
-                    
                     helm upgrade --install myapp-gke ./helm-chart -f helm-chart/values-gke.yaml --set image.tag=${BUILD_NUMBER}
                     """
+                }
+            }
+            post {
+                success {
+                    script {
+                        def gke_ip = sh(script: "kubectl get svc myapp-gke -o jsonpath='{.status.loadBalancer.ingress[0].ip}'", returnStdout: true).trim()
+                        if (gke_ip) {
+                            echo "🌐 GKE App URL: http://${gke_ip}"
+                        } else {
+                            echo "⚠️ GKE Service external IP not ready yet. Run: kubectl get svc myapp-gke"
+                        }
+                    }
                 }
             }
         }
@@ -132,7 +160,6 @@ pipeline {
         }
     }
 }
-
 
 
 
