@@ -337,6 +337,8 @@ helm uninstall multiapp-eks
 helm uninstall multiapp-aks
 helm uninstall multiapp-gke
 kubectl delete all --all
+terraform destroy --auto-approve
+
 ```
 
 ---
