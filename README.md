@@ -499,4 +499,82 @@ pipeline {
 * Deploy app with Helm to **EKS, AKS, GKE**.
 
 ---
+TROUBLESHOOTING:
+
+ the Jenkins pipeline service account does **not** have permission to create the ClusterRoleBinding itself.
+
+That’s expected:
+
+* **Creating RBAC bindings** (`clusterrolebindings.rbac.authorization.k8s.io`) is a **cluster-admin only** action.
+* Since this service account only has limited GKE access, it cannot grant itself higher privileges.
+
+---
+
+## 🔑 What this means
+
+We can’t make Jenkins auto-elevate itself. Someone with **cluster-admin privileges** (usually your GCP IAM user account) must **bootstrap the RBAC once**. After that, the pipeline will work normally.
+
+---
+
+## ✅ Fix Steps
+
+### 1. Log in with your GCP user (not the service account Jenkins uses):
+
+```bash
+gcloud auth login
+gcloud container clusters get-credentials gke-demo --zone us-east4-a --project x-object-472022-q2
+```
+
+### 2. Apply the RBAC binding once:
+
+```bash
+kubectl create clusterrolebinding terraform-admin-binding \
+  --clusterrole=cluster-admin \
+  --user=terraform-admin@x-object-472022-q2.iam.gserviceaccount.com
+```
+
+### 3. Verify:
+
+```bash
+kubectl get clusterrolebinding terraform-admin-binding
+```
+
+Now the service account has cluster-admin, and Jenkins pipelines can install Helm charts without hitting `secrets forbidden`.
+
+---
+
+## 🚀 Best practice
+
+* Do **RBAC bootstrapping once manually** with your own account.
+* Keep the Jenkinsfile only for deployments (don’t try to create clusterrolebindings there).
+* If you want a repeatable setup, save the RBAC in YAML:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: terraform-admin-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: User
+  name: terraform-admin@x-object-472022-q2.iam.gserviceaccount.com
+  apiGroup: rbac.authorization.k8s.io
+```
+
+Then apply once:
+
+```bash
+kubectl apply -f rbac.yaml
+```
+
+---
+
+⚠️ Important: This cannot be fully automated inside Jenkins, because Jenkins doesn’t yet have the privilege to grant itself new privileges.
+
+---
+
+
 
