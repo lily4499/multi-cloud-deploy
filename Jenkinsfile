@@ -111,12 +111,12 @@ pipeline {
                     gcloud config set project $GCP_PROJECT
                     gcloud container clusters get-credentials $GKE_CLUSTER --zone $GCP_ZONE --project $GCP_PROJECT
 
-                    # RBAC binding if missing
-                    if ! kubectl get clusterrolebinding terraform-admin-binding >/dev/null 2>&1; then
-                      kubectl create clusterrolebinding terraform-admin-binding \
-                        --clusterrole=cluster-admin \
-                        --user=terraform-admin@x-object-472022-q2.iam.gserviceaccount.com
-                    fi
+                    // # RBAC binding if missing
+                    // if ! kubectl get clusterrolebinding terraform-admin-binding >/dev/null 2>&1; then
+                    //   kubectl create clusterrolebinding terraform-admin-binding \
+                    //     --clusterrole=cluster-admin \
+                    //     --user=terraform-admin@x-object-472022-q2.iam.gserviceaccount.com
+                    // fi
                     
                     helm upgrade --install myapp-gke ./helm-chart -f helm-chart/values-gke.yaml --set image.tag=${BUILD_NUMBER}
                     """
