@@ -3,8 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "laly9999/multi-cloud-app:${BUILD_NUMBER}"
-
-        # Cluster names
+        
         AWS_REGION   = "us-east-1"
         EKS_CLUSTER  = "eks-demo"
 
